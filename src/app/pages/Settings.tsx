@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { User, Bell, Monitor, Lock } from 'lucide-react';
+import { usePreferences } from '../context/PreferencesContext';
 
 export default function Settings() {
+  const { preferences, setTheme, setLanguage, t } = usePreferences();
   const [userSettings, setUserSettings] = useState({
     name: 'Admin User',
     email: 'admin@pulsechain.com',
@@ -14,28 +16,23 @@ export default function Settings() {
     emailNotifications: true
   });
 
-  const [preferences, setPreferences] = useState({
-    theme: 'Light',
-    language: 'English'
-  });
-
   const handleSave = () => {
-    alert('Settings saved successfully!');
+    alert(t('saveChanges'));
   };
 
   return (
     <Layout>
       <div className="p-8">
         <div className="mb-6">
-          <h1 className="text-2xl mb-2">Settings</h1>
-          <p className="text-sm text-gray-500">Manage your account and preferences</p>
+          <h1 className="text-2xl mb-2">{t('settings')}</h1>
+          <p className="text-sm text-gray-500">{t('userSettings')}</p>
         </div>
 
         <div className="max-w-3xl space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="p-6 border-b border-gray-100 flex items-center gap-3">
               <User className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg">User Settings</h2>
+              <h2 className="text-lg">{t('userSettings')}</h2>
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -74,7 +71,7 @@ export default function Settings() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="p-6 border-b border-gray-100 flex items-center gap-3">
               <Bell className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg">Notification Settings</h2>
+              <h2 className="text-lg">{t('notificationSettings')}</h2>
             </div>
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
@@ -119,14 +116,14 @@ export default function Settings() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="p-6 border-b border-gray-100 flex items-center gap-3">
               <Monitor className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg">System Preferences</h2>
+              <h2 className="text-lg">{t('systemPreferences')}</h2>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm text-gray-700 mb-2">Theme</label>
+                <label className="block text-sm text-gray-700 mb-2">{t('theme')}</label>
                 <select
                   value={preferences.theme}
-                  onChange={(e) => setPreferences({ ...preferences, theme: e.target.value })}
+                  onChange={(e) => setTheme(e.target.value as 'Light' | 'Dark' | 'Auto')}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="Light">Light</option>
@@ -135,10 +132,10 @@ export default function Settings() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-700 mb-2">Language</label>
+                <label className="block text-sm text-gray-700 mb-2">{t('language')}</label>
                 <select
                   value={preferences.language}
-                  onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
+                  onChange={(e) => setLanguage(e.target.value as 'English' | 'Spanish' | 'French' | 'German' | 'Chinese')}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="English">English</option>
@@ -171,7 +168,7 @@ export default function Settings() {
               onClick={handleSave}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Save Changes
+              {t('saveChanges')}
             </button>
           </div>
         </div>

@@ -1,8 +1,11 @@
-import { X, MapPin, Clock, Package, TrendingUp, ArrowRight } from 'lucide-react';
+import { X, MapPin, Clock, Package, TrendingUp, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 
 type ShipmentStatus = 'On Time' | 'Delayed' | 'At Risk';
 type RiskLevel = 'Low' | 'Medium' | 'High';
+
+const verifiedPlaces = ['Shanghai', 'Los Angeles', 'Rotterdam', 'New York', 'Singapore', 'Dubai', 'Miami', 'Tokyo', 'Seattle', 'Hamburg', 'Vancouver', 'Busan', 'London', 'Hong Kong'];
+const verifyPlace = (place: string) => verifiedPlaces.some((known) => place.toLowerCase().includes(known.toLowerCase()));
 
 export interface ShipmentDetail {
   id: string;
@@ -10,10 +13,12 @@ export interface ShipmentDetail {
   destination: string;
   status: ShipmentStatus;
   riskLevel: RiskLevel;
+  risk_level?: RiskLevel; // API format
   eta: string;
   carrier: string;
   weight: string;
   currentLocation?: string;
+  current_location?: string; // API format
 }
 
 interface ShipmentDetailPanelProps {
@@ -88,6 +93,10 @@ export default function ShipmentDetailPanel({ shipment, onClose }: ShipmentDetai
               <div className="text-center">
                 <MapPin className="w-6 h-6 text-blue-600 mx-auto mb-1" />
                 <p className="text-sm font-medium text-gray-900">{shipment.origin}</p>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500 mt-1">
+                  {verifyPlace(shipment.origin) ? <CheckCircle className="w-3 h-3 text-green-600" /> : <AlertTriangle className="w-3 h-3 text-yellow-600" />}
+                  <span>{verifyPlace(shipment.origin) ? 'Verified' : 'Needs verification'}</span>
+                </div>
                 <p className="text-xs text-gray-500">Origin</p>
               </div>
               <div className="flex-1 px-4">
@@ -102,6 +111,10 @@ export default function ShipmentDetailPanel({ shipment, onClose }: ShipmentDetai
               <div className="text-center">
                 <MapPin className="w-6 h-6 text-green-600 mx-auto mb-1" />
                 <p className="text-sm font-medium text-gray-900">{shipment.destination}</p>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500 mt-1">
+                  {verifyPlace(shipment.destination) ? <CheckCircle className="w-3 h-3 text-green-600" /> : <AlertTriangle className="w-3 h-3 text-yellow-600" />}
+                  <span>{verifyPlace(shipment.destination) ? 'Verified' : 'Needs verification'}</span>
+                </div>
                 <p className="text-xs text-gray-500">Destination</p>
               </div>
             </div>

@@ -6,6 +6,7 @@ interface Shipment {
   destination: string;
   status: 'On Time' | 'Delayed' | 'At Risk';
   riskLevel?: 'Low' | 'Medium' | 'High';
+  risk_level?: 'Low' | 'Medium' | 'High'; // API format
   eta: string;
 }
 
@@ -14,7 +15,10 @@ interface AiInsightsProps {
 }
 
 export default function AiInsights({ shipments }: AiInsightsProps) {
-  const highRiskCount = shipments.filter(s => s.riskLevel === 'High' || s.status === 'At Risk').length;
+  // Handle both camelCase (frontend) and snake_case (API) formats
+  const getRiskLevel = (s: Shipment) => s.riskLevel || s.risk_level || 'Low';
+  
+  const highRiskCount = shipments.filter(s => getRiskLevel(s) === 'High' || s.status === 'At Risk').length;
   const delayedCount = shipments.filter(s => s.status === 'Delayed').length;
   const onTimeCount = shipments.filter(s => s.status === 'On Time').length;
 

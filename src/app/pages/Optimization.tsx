@@ -1,77 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
-import { MapPin, Clock, TrendingDown, CheckCircle } from 'lucide-react';
+import { MapPin, Clock, CheckCircle } from 'lucide-react';
+import api, { type Shipment, type OptimizationResult } from '../../services/api';
 
-interface RouteOptimization {
+interface ShipmentOption {
   id: string;
-  shipmentId: string;
-  currentRoute: string;
-  suggestedRoute: string;
-  currentEta: string;
-  optimizedEta: string;
-  timeSaved: string;
-  confidenceScore: number;
-  delayRiskReduction: string;
+  origin: string;
+  destination: string;
+  eta: string;
+  current_location: string;
 }
 
-const mockOptimizations: RouteOptimization[] = [
-  {
-    id: '1',
-    shipmentId: 'SH-003',
-    currentRoute: 'Singapore → Malacca Strait → Dubai',
-    suggestedRoute: 'Singapore → Suez Canal → Dubai',
-    currentEta: '2026-05-01 18:00',
-    optimizedEta: '2026-05-01 11:30',
-    timeSaved: '6.5 hours',
-    confidenceScore: 94,
-    delayRiskReduction: '45%'
-  },
-  {
-    id: '2',
-    shipmentId: 'SH-005',
-    currentRoute: 'Tokyo → North Pacific → Seattle',
-    suggestedRoute: 'Tokyo → Great Circle Route → Seattle',
-    currentEta: '2026-05-01 20:30',
-    optimizedEta: '2026-05-01 16:00',
-    timeSaved: '4.5 hours',
-    confidenceScore: 88,
-    delayRiskReduction: '32%'
-  },
-  {
-    id: '3',
-    shipmentId: 'SH-002',
-    currentRoute: 'Rotterdam → English Channel → New York',
-    suggestedRoute: 'Rotterdam → North Atlantic → New York',
-    currentEta: '2026-04-30 09:15',
-    optimizedEta: '2026-04-30 06:00',
-    timeSaved: '3.25 hours',
-    confidenceScore: 91,
-    delayRiskReduction: '28%'
-  },
-  {
-    id: '4',
-    shipmentId: 'SH-007',
-    currentRoute: 'Hong Kong → Taiwan Strait → Vancouver',
-    suggestedRoute: 'Hong Kong → Direct Pacific → Vancouver',
-    currentEta: '2026-05-05 16:20',
-    optimizedEta: '2026-05-05 14:00',
-    timeSaved: '2.33 hours',
-    confidenceScore: 86,
-    delayRiskReduction: '18%'
-  },
-];
-
 export default function Optimization() {
-  const [selectedOptimization, setSelectedOptimization] = useState<RouteOptimization | null>(mockOptimizations[0]);
-  const [sortBy, setSortBy] = useState<'timeSaved' | 'confidence'>('timeSaved');
+  const [shipments, setShipments] = useState<ShipmentOption[]>([]);
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string>('');
+  const [selectedOptimization, setSelectedOptimization] = useState<OptimizationResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [optimizing, setOptimizing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const sortedOptimizations = [...mockOptimizations].sort((a, b) => {
-    if (sortBy === 'timeSaved') {
-      return parseFloat(b.timeSaved) - parseFloat(a.timeSaved);
-    } else {
-      return b.confidenceScore - a.confidenceScore;
+  useEffect(() => {
+    let mounted = true;
+    api.getShipments()
+      .then((data) => {
+        if (!mounted) return;
+        setShipments(data.map((shipment) => ({
+          id: shipment.id,
+          origin: shipment.origin,
+          destination: shipment.destination,
+          eta: shipment.eta,
+          current_location: shipment.current_location,
+        })));
+        if (data.length > 0) {
+          setSelectedShipmentId(data[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load shipments:', err);
+        setError('Unable to load shipments for optimization. Using fallback recommendations.');
+      })
+      .finally(() => mounted && setLoading(false));
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleOptimize = async (shipmentId: string) => {
+    setSelectedShipmentId(shipmentId);
+    setError(null);
+    setOptimizing(true);
+    try {
+      const result = await api.optimizeRoute(shipmentId);
+      setSelectedOptimization(result);
+    } catch (err) {
+      console.error('Route optimization failed:', err);
+      setError('Route optimization is unavailable right now.');
+    } finally {
+      setOptimizing(false);
     }
-  });
+  };
+
+  const selectedShipment = shipments.find((shipment) => shipment.id === selectedShipmentId);
+  const currentRoute = selectedShipment ? `${selectedShipment.origin} → ${selectedShipment.destination}` : 'Route preview not available';
 
   return (
     <Layout>
@@ -84,15 +75,18 @@ export default function Optimization() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-lg">Route Comparison</h2>
+              <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h2 className="text-lg">Available Shipments</h2>
                 <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'timeSaved' | 'confidence')}
+                  value={selectedShipmentId}
+                  onChange={(e) => handleOptimize(e.target.value)}
                   className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="timeSaved">Sort by Time Saved</option>
-                  <option value="confidence">Sort by Confidence</option>
+                  {shipments.map((shipment) => (
+                    <option key={shipment.id} value={shipment.id}>
+                      {shipment.id} — {shipment.origin} to {shipment.destination}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -101,34 +95,32 @@ export default function Optimization() {
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Shipment ID</th>
-                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Current Route</th>
-                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Suggested Route</th>
-                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Current ETA</th>
-                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Optimized ETA</th>
-                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Time Saved</th>
+                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Route</th>
+                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">ETA</th>
+                      <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {sortedOptimizations.map((opt) => (
-                      <tr
-                        key={opt.id}
-                        onClick={() => setSelectedOptimization(opt)}
-                        className={`cursor-pointer hover:bg-gray-50 ${
-                          selectedOptimization?.id === opt.id ? 'bg-blue-50' : ''
-                        }`}
-                      >
-                        <td className="px-6 py-4 text-sm">{opt.shipmentId}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{opt.currentRoute}</td>
-                        <td className="px-6 py-4 text-sm text-blue-600">{opt.suggestedRoute}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{opt.currentEta}</td>
-                        <td className="px-6 py-4 text-sm text-green-600">{opt.optimizedEta}</td>
-                        <td className="px-6 py-4">
-                          <span className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                            {opt.timeSaved}
-                          </span>
+                    {shipments.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-4 text-sm text-gray-500">
+                          {loading ? 'Loading shipments...' : 'No shipments available.'}
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      shipments.map((shipment) => (
+                        <tr
+                          key={shipment.id}
+                          className={`cursor-pointer hover:bg-gray-50 ${selectedShipmentId === shipment.id ? 'bg-blue-50' : ''}`}
+                          onClick={() => handleOptimize(shipment.id)}
+                        >
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{shipment.id}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{shipment.origin} → {shipment.destination}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{shipment.eta}</td>
+                          <td className="px-6 py-4 text-sm text-blue-600">Optimize</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -136,74 +128,67 @@ export default function Optimization() {
           </div>
 
           <div>
-            {selectedOptimization ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg mb-4">Optimization Details</h3>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Optimization Details</h3>
+              </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Shipment</p>
-                    <p className="text-lg">{selectedOptimization.shipmentId}</p>
-                  </div>
-
-                  <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-gray-100"></div>
-                    <div className="relative z-10 text-center">
-                      <MapPin className="w-12 h-12 text-blue-600 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">Route preview</p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Time Saved</span>
-                      <span className="text-lg text-green-600">{selectedOptimization.timeSaved}</span>
-                    </div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Delay Risk Reduction</span>
-                      <span className="text-lg text-blue-600">{selectedOptimization.delayRiskReduction}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Confidence Score</span>
-                      <span className="text-lg">{selectedOptimization.confidenceScore}%</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="text-sm text-gray-700">Recommended optimization</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Route Details</p>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1">Current</p>
-                      <p className="text-sm">{selectedOptimization.currentRoute}</p>
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {selectedOptimization.currentEta}
-                      </div>
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-xs text-blue-600 mb-1">Suggested</p>
-                      <p className="text-sm text-blue-900">{selectedOptimization.suggestedRoute}</p>
-                      <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {selectedOptimization.optimizedEta}
-                      </div>
-                    </div>
-                  </div>
-
-                  <button className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    Apply Optimization
-                  </button>
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-700 border border-red-200">
+                  {error}
                 </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Current route</p>
+                  <p className="text-lg text-gray-900">{currentRoute}</p>
+                </div>
+
+                <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-gray-100" />
+                  <div className="relative z-10 text-center">
+                    <MapPin className="w-12 h-12 text-blue-600 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Route preview</p>
+                  </div>
+                </div>
+
+                {selectedOptimization ? (
+                  <>
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Suggested route</span>
+                        <span className="text-sm text-blue-600 font-medium">Optimized</span>
+                      </div>
+                      <p className="text-sm text-blue-900">{selectedOptimization.suggested_route}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Time Saved</span>
+                        <span className="text-lg text-green-600">{selectedOptimization.time_saved} min</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Risk Reduction</span>
+                        <span className="text-lg text-blue-600">{selectedOptimization.risk_reduction}%</span>
+                      </div>
+                      <div className="text-sm text-gray-600">Alternative routes: {selectedOptimization.alternative_routes.join(', ')}</div>
+                    </div>
+
+                    <button
+                      className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      disabled={optimizing}
+                    >
+                      {optimizing ? 'Optimizing...' : 'Apply Optimization'}
+                    </button>
+                  </>
+                ) : (
+                  <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-500">
+                    Select a shipment to view optimization details.
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <p className="text-sm text-gray-500 text-center">Select a route to view details</p>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

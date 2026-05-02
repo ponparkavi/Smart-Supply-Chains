@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
-import { Filter, Plus, X, Search, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Filter, Plus, X, Search, SlidersHorizontal, ArrowUpDown, MapPin } from 'lucide-react';
 import { useSearch } from '../components/SearchContext';
 import { useRole } from '../context/RoleContext';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ShipmentDetailPanel, { type ShipmentDetail } from '../components/ShipmentDetailPanel';
 import AiInsights from '../components/AiInsights';
+import GoogleLocationPicker from '../components/ui/GoogleLocationPicker';
 
 type ShipmentStatus = 'On Time' | 'Delayed' | 'At Risk';
 type RiskLevel = 'Low' | 'Medium' | 'High';
@@ -49,7 +50,7 @@ export default function Shipments() {
   const [sortBy, setSortBy] = useState<SortField>('eta');
   const [selectedShipment, setSelectedShipment] = useState<ShipmentDetail | null>(null);
 
-  const [showAddModal, setShowAddModal] = useState(false);
+const [showAddModal, setShowAddModal] = useState(false);
   const [newShipment, setNewShipment] = useState({
     id: '',
     origin: '',
@@ -60,6 +61,9 @@ export default function Shipments() {
     carrier: '',
     weight: ''
   });
+  // Location state with coordinates
+  const [originLocation, setOriginLocation] = useState<{ lat: number; lng: number; name: string } | null>(null);
+  const [destLocation, setDestLocation] = useState<{ lat: number; lng: number; name: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -385,35 +389,29 @@ export default function Shipments() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm mb-2 font-medium text-gray-700">
-                      Origin <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={newShipment.origin}
-                      onChange={(e) => setNewShipment({ ...newShipment, origin: e.target.value })}
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                        errors.origin ? 'border-red-500' : 'border-gray-200'
-                      }`}
-                      placeholder="e.g., Shanghai"
+                    <GoogleLocationPicker
+                      label="Origin"
+                      value={originLocation}
+                      onChange={(location) => {
+                        setOriginLocation(location);
+                        setNewShipment({ ...newShipment, origin: location.name });
+                      }}
+                      apiKey=""
                     />
                     {errors.origin && <p className="text-xs text-red-500 mt-1">{errors.origin}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm mb-2 font-medium text-gray-700">
-                      Destination <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={newShipment.destination}
-                      onChange={(e) => setNewShipment({ ...newShipment, destination: e.target.value })}
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                        errors.destination ? 'border-red-500' : 'border-gray-200'
-                      }`}
-                      placeholder="e.g., Los Angeles"
+                    <GoogleLocationPicker
+                      label="Destination"
+                      value={destLocation}
+                      onChange={(location) => {
+                        setDestLocation(location);
+                        setNewShipment({ ...newShipment, destination: location.name });
+                      }}
+                      apiKey=""
                     />
                     {errors.destination && <p className="text-xs text-red-500 mt-1">{errors.destination}</p>}
                   </div>
